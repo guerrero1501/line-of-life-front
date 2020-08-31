@@ -43,8 +43,6 @@ export default {
   },
   async mounted() {
     this.loading = true;
-    console.log(this.isAuthentication);
-    console.log(localStorage.accessToken);
     this.loading = false;
   },
   watch: {

@@ -3,13 +3,23 @@
     <loading :active.sync="loading"></loading>
     <div class="row" v-if="!file">
       <div v-if="url" class="col mt-3 mb-3">
-        <img v-bind:src="url" class="img-fluid" style="max-width: 300px; max-height: 300px" />
+        <img
+          v-bind:src="url"
+          class="img-fluid"
+          style="max-width: 300px; max-height: 300px"
+        />
       </div>
     </div>
     <div
       id="photo-preview"
       v-else
-      :style="'width: ' + (this.aspectRatioPhoto * 400) + 'px ; background-image:url(' + previewImage + ')'"
+      :style="
+        'width: ' +
+          this.aspectRatioPhoto * 400 +
+          'px ; background-image:url(' +
+          previewImage +
+          ')'
+      "
     >
       <div id="shape-wrap" :style="shapeWrap">
         <div class="white-space" :style="whiteSpace"></div>
@@ -21,12 +31,18 @@
     </div>
     <div class="row">
       <div v-if="cropped" class="col mt-3 mb-3">
-        <img v-bind:src="cropped" class="img-fluid" style="max-width: 300px; max-height: 300px" />
+        <img
+          v-bind:src="cropped"
+          class="img-fluid"
+          style="max-width: 300px; max-height: 300px"
+        />
       </div>
     </div>
     <div class="row">
       <div class="col">
-        <button type="button" class="btn btn-primary" @click="ChooseShape">Good Luck</button>
+        <button type="button" class="btn btn-primary" @click="ChooseShape">
+          Good Luck
+        </button>
       </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
@@ -77,7 +93,9 @@
     </div>
     <div class="row mt-3" v-if="shapeId">
       <div class="col">
-        <button type="button" class="btn btn-primary" @click="UploadPhoto">Filter Photo</button>
+        <button type="button" class="btn btn-primary" @click="UploadPhoto">
+          Filter Photo
+        </button>
       </div>
     </div>
   </div>
@@ -88,6 +106,7 @@ import { mapState } from "vuex";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/vue-loading.css";
 import axios from "axios";
+import Compressor from "compressorjs";
 export default {
   data() {
     return {
@@ -116,11 +135,11 @@ export default {
       pHP: 0,
       UP: 0,
       aspectRatioPhoto: 0,
-      aspectRatioShape: 0
+      aspectRatioShape: 0,
     };
   },
   components: {
-    Loading
+    Loading,
   },
   computed: {
     ...mapState([
@@ -129,7 +148,7 @@ export default {
       "CONTROLLER_SHAPE",
       "CONTROLLER_PHOTO",
       "ASSIGN_SHAPE",
-      "PHOTO_FILTER"
+      "PHOTO_FILTER",
     ]),
     shapeWrap() {
       return {
@@ -152,14 +171,14 @@ export default {
           this.mode == "x-mode"
             ? -1 * parseInt(this.pWP) + parseInt(this.xoffset)
             : 0
-        }px`
+        }px`,
       };
     },
     whiteSpace() {
       return {
         height: `${400}px`,
         width: `${this.aspectRatioPhoto * 400}px`,
-        float: `${this.mode == "y-mode" ? "none" : "left"}`
+        float: `${this.mode == "y-mode" ? "none" : "left"}`,
       };
     },
     shapeStyle() {
@@ -168,9 +187,9 @@ export default {
           this.mode == "x-mode" ? "auto" : 400 * this.aspectRatioPhoto + "px"
         }`,
         height: `${this.mode == "x-mode" ? 400 + "px" : "auto"}`,
-        float: `${this.mode == "y-mode" ? "none" : "left"}`
+        float: `${this.mode == "y-mode" ? "none" : "left"}`,
       };
-    }
+    },
   },
   methods: {
     changeX() {
@@ -185,7 +204,7 @@ export default {
       if (files && files[0]) {
         this.file = files[0];
         let reader = new FileReader();
-        reader.onload = e => {
+        reader.onload = (e) => {
           console.log(e.target);
           var image = new Image();
           image.src = e.target.result;
@@ -195,6 +214,22 @@ export default {
           image.onload = () => {
             this.nHF = image.naturalHeight;
             this.nWF = image.naturalWidth;
+
+            if (this.nHF > 2200 || this.nWF > 2200) {
+              new Compressor(this.file, {
+                maxHeight: 2200,
+                maxWidth: 2200,
+                quality: 0.85,
+                success(result) {
+                  this.file = result;
+                  console.log(result);
+                },
+                error(err) {
+                  console.log(err.message);
+                },
+              });
+            }
+
             this.aspectRatioPhoto = this.nWF / this.nHF;
             this.UP = this.nHF / 400;
             console.log(this.UP);
@@ -215,6 +250,8 @@ export default {
               this.maxYoffset = parseInt(this.pHP - this.pHS);
               this.maxXoffset = 0;
             }
+            console.log(this.pWP);
+            console.log(this.pHP);
             console.log(this.pHS);
             console.log(this.pWS);
           };
@@ -230,7 +267,7 @@ export default {
           `${this.BASE_SERVER_URL}${this.CONTROLLER_SHAPE}/${this.ASSIGN_SHAPE}`,
           body
         )
-        .then(response => {
+        .then((response) => {
           console.log(json);
           let json = response.data;
           this.loading = false;
@@ -251,7 +288,7 @@ export default {
             };
           } else alert(json.header.message);
         })
-        .catch(error => {
+        .catch((error) => {
           this.loading = false;
           alert("error: " + error);
         });
@@ -270,7 +307,7 @@ export default {
       formData.append("shapeId", this.shapeId);
       axios
         .post(`${this.BASE_SERVER_URL}${this.CONTROLLER_PHOTO}`, formData)
-        .then(response => {
+        .then((response) => {
           console.log(json);
           let json = response.data;
           if (response.status === 200) {
@@ -278,27 +315,27 @@ export default {
               id: this.shapeId + "_202008252542_DVG",
               shapeId: this.shapeId,
               xoffset: parseInt(parseInt(this.xoffset) * this.UP),
-              yoffset: parseInt(parseInt(this.yoffset) * this.UP)
+              yoffset: parseInt(parseInt(this.yoffset) * this.UP),
             };
             axios
               .post(
                 `${this.BASE_SERVER_URL}${this.CONTROLLER_PHOTO}/${this.PHOTO_FILTER}`,
                 body
               )
-              .then(response1 => {
+              .then((response1) => {
                 let json1 = response1.data;
                 this.loading = false;
                 if (response1.status === 200) {
                   this.cropped = json1.cropped;
                 } else alert(json.header.message);
               })
-              .catch(error => {
+              .catch((error) => {
                 this.loading = false;
                 alert("error: " + error);
               });
           } else alert(json.header.message);
         })
-        .catch(error => {
+        .catch((error) => {
           this.loading = false;
           alert("error: " + error);
         });
@@ -306,12 +343,12 @@ export default {
     setFile(event) {
       this.file = event.target.files[0];
       console.log(this.file);
-    }
+    },
   },
   mounted() {
     this.pieceId = this.$route.query.pieceId;
     this.loading = false;
-  }
+  },
 };
 </script>
 

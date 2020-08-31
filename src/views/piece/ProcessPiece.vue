@@ -116,7 +116,6 @@ export default {
         }
       );
       let json = await response.json();
-      console.log(json);
 
       this.loading = false;
 
