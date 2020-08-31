@@ -45,6 +45,9 @@
           <label v-else class="custom-file-label">{{ file.name }}</label>
         </div>
       </div>
+      <div class="col-6">
+        <WebCamera />
+      </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
       <div class="col">
@@ -88,6 +91,7 @@ import { mapState } from "vuex";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/vue-loading.css";
 import axios from "axios";
+import WebCamera from "../../components/WebCamera";
 export default {
   data() {
     return {
@@ -120,7 +124,8 @@ export default {
     };
   },
   components: {
-    Loading
+    Loading,
+    WebCamera
   },
   computed: {
     ...mapState([
