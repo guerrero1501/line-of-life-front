@@ -35,6 +35,16 @@
         <button type="button" class="btn btn-primary" @click="ChooseShape">Good Luck</button>
       </div>
     </div>
+    <div class="row">
+      <div class="col">
+        <input type="radio" id="one" value="One" v-model="picked">
+<label for="one">One</label>
+<br>
+<input type="radio" id="two" value="Two" v-model="picked">
+<label for="two">Two</label>
+<br>
+      </div>
+    </div> 
     <div class="row mt-3" v-if="shapeId">
       <div class="col-6">
         <div class="custom-file">
@@ -42,7 +52,6 @@
             type="file"
             class="custom-file-input"
             id="validatedCustomFile"
-            ref="fileInput"
             accept="image/*"
             @change="pickFile"
             required
