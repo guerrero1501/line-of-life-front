@@ -1,248 +1,111 @@
 <template>
-  <div id="app" class="web-camera-container">
-  <div class="camera-button">
-      <button type="button" class="button is-rounded" :class="{ 'is-primary' : !isCameraOpen, 'is-danger' : isCameraOpen}" @click="toggleCamera">
-        <span v-if="!isCameraOpen">Open Camera</span>
-        <span v-else>Close Camera</span>
-    </button>
-  </div>
-  
-  <div v-show="isCameraOpen && isLoading" class="camera-loading">
-    <ul class="loader-circle">
-      <li></li>
-      <li></li>
-      <li></li>
-    </ul>
-  </div>
-  
-  <div v-if="isCameraOpen" v-show="!isLoading" class="camera-box" :class="{ 'flash' : isShotPhoto }">
-    
-    <div class="camera-shutter" :class="{'flash' : isShotPhoto}"></div>
-      
-    <video v-show="!isPhotoTaken" ref="camera" :width="450" :height="337.5" autoplay></video>
-    
-    <canvas v-show="isPhotoTaken" id="photoTaken" ref="canvas" :width="450" :height="337.5"></canvas>
-  </div>
-  
-  <div v-if="isCameraOpen && !isLoading" class="camera-shoot">
-    <button type="button" class="button" @click="takePhoto">
-      <img src="https://img.icons8.com/material-outlined/50/000000/camera--v2.png">
-    </button>
-  </div>
-  
-  <div v-if="isPhotoTaken && isCameraOpen" class="camera-download">
-    <a id="downloadPhoto" download="my-photo.jpg" class="button" role="button" @click="downloadImage">
-      Download
-    </a>
-  </div>
-</div>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h2>Current Camera</h2>
+                <code v-if="device">{{ device.label }}</code>
+                <div class="border">
+                    <vue-web-cam
+                        ref="webcam"
+                        :device-id="deviceId"
+                        width="100%"
+                        @started="onStarted"
+                        @stopped="onStopped"
+                        @error="onError"
+                        @cameras="onCameras"
+                        @camera-change="onCameraChange"
+                    />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <select v-model="camera">
+                            <option>-- Select Device --</option>
+                            <option
+                                v-for="device in devices"
+                                :key="device.deviceId"
+                                :value="device.deviceId"
+                            >{{ device.label }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <button type="button" class="btn btn-primary" @click="onCapture">Capture Photo</button>
+                        <button type="button" class="btn btn-danger" @click="onStop">Stop Camera</button>
+                        <button type="button" class="btn btn-success" @click="onStart">Start Camera</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h2>Captured Image</h2>
+                <figure class="figure">
+                    <img :src="img" class="img-responsive" />
+                </figure>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script>
-
+import { WebCam } from "vue-web-cam";
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
-  },
-  data() {
-    return {
-      isCameraOpen: false,
-      isPhotoTaken: false,
-      isShotPhoto: false,
-      isLoading: false,
-      link: '#'
+    name: "App",
+    components: {
+        "vue-web-cam": WebCam
+    },
+    data() {
+        return {
+            img: null,
+            camera: null,
+            deviceId: null,
+            devices: []
+        };
+    },
+    computed: {
+        device: function() {
+            return this.devices.find(n => n.deviceId === this.deviceId);
+        }
+    },
+    watch: {
+        camera: function(id) {
+            this.deviceId = id;
+        },
+        devices: function() {
+            // Once we have a list select the first one
+            const [first] = this.devices;
+            if (first) {
+                this.camera = first.deviceId;
+                this.deviceId = first.deviceId;
+            }
+        }
+    },
+    methods: {
+        onCapture() {
+            this.img = this.$refs.webcam.capture();
+        },
+        onStarted(stream) {
+            console.log("On Started Event", stream);
+        },
+        onStopped(stream) {
+            console.log("On Stopped Event", stream);
+        },
+        onStop() {
+            this.$refs.webcam.stop();
+        },
+        onStart() {
+            this.$refs.webcam.start();
+        },
+        onError(error) {
+            console.log("On Error Event", error);
+        },
+        onCameras(cameras) {
+            this.devices = cameras;
+            console.log("On Cameras Event", cameras);
+        },
+        onCameraChange(deviceId) {
+            this.deviceId = deviceId;
+            this.camera = deviceId;
+            console.log("On Camera Change Event", deviceId);
+        }
     }
-  },
-  
-  methods: {
-    toggleCamera() {
-      if(this.isCameraOpen) {
-        this.isCameraOpen = false;
-        this.isPhotoTaken = false;
-        this.isShotPhoto = false;
-        this.stopCameraStream();
-      } else {
-        this.isCameraOpen = true;
-        this.createCameraElement();
-      }
-    },
-    
-    createCameraElement() {
-      this.isLoading = true;
-      
-      const constraints = (window.constraints = {
-                audio: false,
-                video: true
-            });
-
-
-            navigator.mediaDevices
-                .getUserMedia(constraints)
-                .then(stream => {
-          this.isLoading = false;
-                    this.$refs.camera.srcObject = stream;
-                })
-                .catch(error => {
-          this.isLoading = false;
-                    alert("May the browser didn't support or there is some errors." + error);
-                });
-    },
-    
-    stopCameraStream() {
-      let tracks = this.$refs.camera.srcObject.getTracks();
-
-            tracks.forEach(track => {
-                track.stop();
-            });
-    },
-    
-    takePhoto() {
-      if(!this.isPhotoTaken) {
-        this.isShotPhoto = true;
-
-        const FLASH_TIMEOUT = 50;
-
-        setTimeout(() => {
-          this.isShotPhoto = false;
-        }, FLASH_TIMEOUT);
-      }
-      
-      this.isPhotoTaken = !this.isPhotoTaken;
-      
-      const context = this.$refs.canvas.getContext('2d');
-      context.drawImage(this.$refs.camera, 0, 0, 450, 337.5);
-    },
-    
-    downloadImage() {
-      const download = document.getElementById("downloadPhoto");
-      const canvas = document.getElementById("photoTaken").toDataURL("image/jpeg")
-    .replace("image/jpeg", "image/octet-stream");
-      download.setAttribute("href", canvas);
-    }
-  }
-}
+};
 </script>
-
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-body {
-  display: flex;
-  justify-content: center;
-}
-
-.web-camera-container {
-  margin-top: 2rem;
-  margin-bottom: 2rem;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  width: 500px;
-
-  
-  .camera-button {
-    margin-bottom: 2rem;
-  }
-  
-  .camera-box {    
-    .camera-shutter {
-      opacity: 0;
-      width: 450px;
-      height: 337.5px;
-      background-color: #fff;
-      position: absolute;
-      
-      &.flash {
-        opacity: 1;
-      }
-    }
-  }
-  
-  .camera-shoot {
-    margin: 1rem 0;
-    
-    button {
-      height: 60px;
-      width: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 100%;
-      
-      img {
-        height: 35px;
-        object-fit: cover;
-      }
-    }
-  }
-  
-  .camera-loading {
-    overflow: hidden;
-    height: 100%;
-    position: absolute;
-    width: 100%;
-    min-height: 150px;
-    margin: 3rem 0 0 -1.2rem;
-    
-    ul {
-      height: 100%;
-      position: absolute;
-      width: 100%;
-      z-index: 999999;
-      margin: 0;
-    }
-    
-    .loader-circle {
-      display: block;
-      height: 14px;
-      margin: 0 auto;
-      top: 50%;
-      left: 100%;
-      transform: translateY(-50%);
-      transform: translateX(-50%);
-      position: absolute;
-      width: 100%;
-      padding: 0;
-      
-      li {
-        display: block;
-        float: left;
-        width: 10px;
-        height: 10px;
-        line-height: 10px;
-        padding: 0;
-        position: relative;
-        margin: 0 0 0 4px;
-        background: #999;
-        animation: preload 1s infinite;
-        top: -50%;
-        border-radius: 100%;
-        
-        &:nth-child(2) {
-          animation-delay: .2s;
-        }
-        
-        &:nth-child(3) {
-          animation-delay: .4s;
-        }
-      }
-    }
-  }
-
-  @keyframes preload {
-    0% {
-      opacity: 1
-    }
-    50% {
-      opacity: .4
-    }
-    100% {
-      opacity: 1
-    }
-  }
-}
-</style>
