@@ -35,18 +35,22 @@
         <button type="button" class="btn btn-primary" @click="ChooseShape">Good Luck</button>
       </div>
     </div>
-    <div class="row">
+
+    <div class="row" v-if="shapeId">
       <div class="col">
-        <input type="radio" id="one" value="One" v-model="picked">
-<label for="one">One</label>
-<br>
-<input type="radio" id="two" value="Two" v-model="picked">
-<label for="two">Two</label>
-<br>
+        <input type="radio" id="1" value="1" v-model="picked" />
+        <label>Take image of the gallery</label>
+        <br />
       </div>
-    </div> 
+      <div class="col">
+        <input type="radio" id="2" value="2" v-model="picked" />
+        <label>Take photo on the camera</label>
+        <br />
+      </div>
+    </div>
+
     <div class="row mt-3" v-if="shapeId">
-      <div class="col-6">
+      <div class="col-10" v-if="picked == 1">
         <div class="custom-file">
           <input
             type="file"
@@ -60,8 +64,8 @@
           <label v-else class="custom-file-label">{{ file.name }}</label>
         </div>
       </div>
-      <div class="col-6">
-        <WebCamera />
+      <div class="col-10" v-if="picked == 2">
+        <WebCamera @deviceId="x => changeCamera(x)" @onCapture="img => setImage(img)"/>
       </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
@@ -106,12 +110,14 @@ import { mapState } from "vuex";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/vue-loading.css";
 import axios from "axios";
-import Compressor from "compressorjs";
 import WebCamera from "../../components/WebCamera";
 export default {
   data() {
     return {
+      image: new Image(),
+      deviceId: "",
       loading: true,
+      picked: 1,
       mode: "",
       pieceId: "",
       shapeId: "",
@@ -128,6 +134,8 @@ export default {
       previewImage: null,
       nHF: 0,
       nWF: 0,
+      nHC: 0,
+      nWC: 0,
       nHS: 0,
       nWS: 0,
       pWS: 0,
@@ -201,6 +209,28 @@ export default {
       console.log(this.xoffset);
       console.log(parseInt(this.pWP) + parseInt(this.xoffset));
     },
+    setImage(img){
+      this.image = img;
+      console.log(this.image);
+    }
+    ,
+    async changeCamera(deviceId){
+      this.deviceId = deviceId;
+      let tracks = (await navigator.mediaDevices.getUserMedia({video: true})).getTracks(); //[0].getSettings()
+      tracks.forEach(element => {
+        
+        if(this.deviceId == element.getSettings().deviceId){
+          let {width, height} = element.getSettings();
+          this.nHC = height;
+          this.nWC = width;
+          console.log(element.getSettings());
+        }
+      });
+     
+      console.log(this.nHC);
+      console.log(this.nWC);
+      alert(this.nHC + "x" + this.nWC)
+    },
     pickFile(event) {
       let files = event.target.files;
       if (files && files[0]) {
@@ -216,21 +246,6 @@ export default {
           image.onload = () => {
             this.nHF = image.naturalHeight;
             this.nWF = image.naturalWidth;
-
-            if (this.nHF > 2200 || this.nWF > 2200) {
-              new Compressor(this.file, {
-                maxHeight: 2200,
-                maxWidth: 2200,
-                quality: 0.85,
-                success(result) {
-                  this.file = result;
-                  console.log(result);
-                },
-                error(err) {
-                  console.log(err.message);
-                }
-              });
-            }
 
             this.aspectRatioPhoto = this.nWF / this.nHF;
             this.UP = this.nHF / 400;
@@ -252,10 +267,7 @@ export default {
               this.maxYoffset = parseInt(this.pHP - this.pHS);
               this.maxXoffset = 0;
             }
-            console.log(this.pWP);
-            console.log(this.pHP);
-            console.log(this.pHS);
-            console.log(this.pWS);
+            
           };
         };
         reader.readAsDataURL(this.file);
