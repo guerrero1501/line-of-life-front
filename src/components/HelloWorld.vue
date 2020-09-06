@@ -114,10 +114,7 @@ data() {
     msg: String
   },
   methods: {
-    async getResolution(){
-      let settings = (await navigator.mediaDevices.getUserMedia({video: true})).getTracks()[0].getSettings();
-      console.log(settings);
-    }
+   
   },
   async mounted() {
     alert(this.getResolution());

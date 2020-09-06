@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <loading :active.sync="loading"></loading>
-    <div class="row" v-if="!file">
+    <div class="row" v-if="!file && picked == 1">
       <div v-if="url" class="col mt-3 mb-3">
         <img v-bind:src="url" class="img-fluid" style="max-width: 300px; max-height: 300px" />
       </div>
@@ -65,7 +65,7 @@
         </div>
       </div>
       <div class="col-10" v-if="picked == 2">
-        <WebCamera @deviceId="x => changeCamera(x)" @onCapture="img => setImage(img)"/>
+        <WebCamera @deviceId="x => changeCamera(x)" @onCapture="img => capture(img)"/>
       </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
@@ -211,26 +211,60 @@ export default {
     },
     setImage(img){
       this.image = img;
+      this.previewImage = img; 
       console.log(this.image);
     }
     ,
-    async changeCamera(deviceId){
-      this.deviceId = deviceId;
-      let tracks = (await navigator.mediaDevices.getUserMedia({video: true})).getTracks(); //[0].getSettings()
-      tracks.forEach(element => {
+    // async changeCamera(deviceId){
+    //   this.deviceId = deviceId;
+    //   let tracks = (await navigator.mediaDevices.getUserMedia({video: true})).getTracks(); //[0].getSettings()
+    //   tracks.forEach(element => {
         
-        if(this.deviceId == element.getSettings().deviceId){
-          let {width, height} = element.getSettings();
-          this.nHC = height;
-          this.nWC = width;
-          console.log(element.getSettings());
-        }
-      });
-     
-      console.log(this.nHC);
-      console.log(this.nWC);
-      alert(this.nHC + "x" + this.nWC)
-    },
+    //     if(this.deviceId == element.getSettings().deviceId){
+    //       let {width, height} = element.getSettings();
+    //       this.nHC = height;
+    //       this.nWC = width;
+    //       console.log(element.getSettings());
+    //     }
+    //  element.stop();
+
+    //   });
+    //   console.log(this.nHC);
+    //   console.log(this.nWC);
+    //   alert(this.nHC + "x" + this.nWC)
+    // },
+    capture(img){
+      if(img){
+        this.previewImage = img.src;
+        img.onload = () => {
+            this.nHF = img.naturalHeight;
+            this.nWF = img.naturalWidth;
+            console.log(img);            
+            this.aspectRatioPhoto = this.nWF / this.nHF;
+            this.UP = this.nHF / 400;
+            console.log(this.UP);
+            this.pWP = parseInt(this.nWF / this.UP);
+            this.pHP = parseInt(this.nHF / this.UP);
+            if (this.aspectRatioPhoto >= this.aspectRatioShape) {
+              this.mode = "x-mode";
+              this.yoffset = 0;
+              this.pHS = this.pHP;
+              this.pWS = this.pHS * this.aspectRatioShape;
+              this.maxXoffset = parseInt(this.pWP - this.pWS);
+              this.maxYoffset = 0;
+            } else {
+              this.mode = "y-mode";
+              this.xoffset = 0;
+              this.pHS = this.pWP / this.aspectRatioShape;
+              this.pWS = this.pWP;
+              this.maxYoffset = parseInt(this.pHP - this.pHS);
+              this.maxXoffset = 0;
+            }
+            
+          };
+      }
+    }
+    ,
     pickFile(event) {
       let files = event.target.files;
       if (files && files[0]) {
