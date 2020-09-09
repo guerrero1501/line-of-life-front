@@ -1,12 +1,12 @@
 <template>
   <div>
     <loading :active.sync="loading"></loading>
-    <div class="container mt-5" style="text-align: left">
+    <div style="text-align: left; width: 90%; margin: 0 auto">
       <div
         v-for="piece in data"
         :key="piece.id"
         class="card"
-        style="width: 18rem; display: inline-block; margin: 5px"
+        style="width: 300px; display: inline-block; margin: 5px"
       >
         <img
           class="card-img-top"

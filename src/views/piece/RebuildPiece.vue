@@ -1,9 +1,8 @@
 <template>
   <div>
     <loading :active.sync="loading"></loading>
-    <div class="container mt-5">
-      <div v-for="piece in data" :key="piece.id" class="row">
-        <div class="card" style="width: 18rem;">
+    <div style="text-align: left; width: 90%; margin: 0 auto">
+        <div v-for="piece in data" :key="piece.id" class="card" style="width: 300px; display: inline-block; margin: 5px">
           <img
             class="card-img-top"
             :src="
@@ -21,7 +20,6 @@
             >Rebuild</router-link>
           </div>
         </div>
-      </div>
     </div>
   </div>
 </template>

@@ -1,17 +1,23 @@
 <template>
   <div class="container">
     <loading :active.sync="loading"></loading>
-    <div class="row" v-if="!file && picked == 1">
+    <div class="row" v-if="!file">
       <div v-if="url" class="col mt-3 mb-3">
-        <img v-bind:src="url" class="img-fluid" style="max-width: 300px; max-height: 300px" />
+        <img
+          v-bind:src="url"
+          class="img-fluid"
+          style="max-width: 300px; max-height: 300px"
+        />
       </div>
     </div>
     <div
       id="photo-preview"
       v-else
       :style="
-        'width: ' +
-          this.aspectRatioPhoto * 400 +
+        'height: ' +
+          this.pHP +
+          'px; width: ' +
+          this.pWP +
           'px ; background-image:url(' +
           previewImage +
           ')'
@@ -25,18 +31,16 @@
         <!-- display:block -->
       </div>
     </div>
-    <div class="row">
-      <div v-if="cropped" class="col mt-3 mb-3">
-        <img v-bind:src="cropped" class="img-fluid" style="max-width: 300px; max-height: 300px" />
-      </div>
-    </div>
+
     <div class="row">
       <div class="col">
-        <button type="button" class="btn btn-primary" @click="ChooseShape">Good Luck</button>
+        <button type="button" class="btn btn-primary" @click="ChooseShape">
+          Random Shape
+        </button>
       </div>
     </div>
 
-    <div class="row" v-if="shapeId">
+    <div class="row" v-if="shapeId" id="camera-mode" style="display: none">
       <div class="col">
         <input type="radio" id="1" value="1" v-model="picked" />
         <label>Take image of the gallery</label>
@@ -51,26 +55,29 @@
 
     <div class="row mt-3" v-if="shapeId">
       <div class="col-10" v-if="picked == 1">
-        <div class="custom-file">
+        <div class="custom-file" style="overflow: hidden">
           <input
             type="file"
             class="custom-file-input"
             id="validatedCustomFile"
             accept="image/*"
-            @change="pickFile"
+            @change="pickFileOrientation"
             required
           />
-          <label v-if="!file" class="custom-file-label">Choose piece...</label>
+          <label v-if="!file" class="custom-file-label">Select a photo</label>
           <label v-else class="custom-file-label">{{ file.name }}</label>
         </div>
       </div>
       <div class="col-10" v-if="picked == 2">
-        <WebCamera @deviceId="x => changeCamera(x)" @onCapture="img => capture(img)"/>
+        <WebCamera
+          @deviceId="x => changeCamera(x)"
+          @onCapture="img => capture(img)"
+        />
       </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
       <div class="col">
-        <label>xoffset</label>
+        <label id="label-x-offset" :class="mode">xoffset</label>
         <input
           id="input-x-offset"
           type="range"
@@ -79,13 +86,12 @@
           :max="maxXoffset"
           step="1"
           v-model="xoffset"
-          @change="changeX"
         />
       </div>
     </div>
     <div class="row mt-3" v-if="shapeId">
       <div class="col">
-        <label>yoffset</label>
+        <label id="label-y-offset" :class="mode">yoffset</label>
         <input
           id="input-y-offset"
           type="range"
@@ -99,7 +105,18 @@
     </div>
     <div class="row mt-3" v-if="shapeId">
       <div class="col">
-        <button type="button" class="btn btn-primary" @click="UploadPhoto">Filter Photo</button>
+        <button type="button" class="btn btn-primary" @click="UploadPhoto">
+          Filter Photo
+        </button>
+      </div>
+    </div>
+    <div class="row">
+      <div v-if="cropped" class="col mt-3 mb-3">
+        <img
+          v-bind:src="cropped"
+          class="img-fluid"
+          style="max-width: 300px; max-height: 300px; display: block; margin: 0 auto"
+        />
       </div>
     </div>
   </div>
@@ -111,6 +128,7 @@ import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/vue-loading.css";
 import axios from "axios";
 import WebCamera from "../../components/WebCamera";
+import loadImage from "blueimp-load-image";
 export default {
   data() {
     return {
@@ -144,7 +162,8 @@ export default {
       pHP: 0,
       UP: 0,
       aspectRatioPhoto: 0,
-      aspectRatioShape: 0
+      aspectRatioShape: 0,
+      screenHeight: 0
     };
   },
   components: {
@@ -163,14 +182,10 @@ export default {
     shapeWrap() {
       return {
         width: `${
-          this.mode == "x-mode"
-            ? 400 * (this.aspectRatioPhoto * 2 + this.aspectRatioShape) + 1
-            : this.aspectRatioPhoto * 400
+          this.mode == "x-mode" ? this.pWP * 2 + this.pWS + 1 : this.pWP
         }px`,
         height: `${
-          this.mode == "y-mode"
-            ? 800 + (400 * this.aspectRatioPhoto) / this.aspectRatioShape + 1
-            : 400
+          this.mode == "y-mode" ? 2 * this.pHP + this.pHS : this.pHP
         }px`,
         top: `${
           this.mode == "y-mode"
@@ -186,85 +201,79 @@ export default {
     },
     whiteSpace() {
       return {
-        height: `${400}px`,
-        width: `${this.aspectRatioPhoto * 400}px`,
+        height: `${this.pHP}px`,
+        width: `${this.pWP}px`,
         float: `${this.mode == "y-mode" ? "none" : "left"}`
       };
     },
     shapeStyle() {
       return {
-        width: `${
-          this.mode == "x-mode" ? "auto" : 400 * this.aspectRatioPhoto + "px"
-        }`,
-        height: `${this.mode == "x-mode" ? 400 + "px" : "auto"}`,
+        width: `${this.mode == "x-mode" ? "auto" : this.pWP + "px"}`,
+        height: `${this.mode == "x-mode" ? this.pHP + "px" : "auto"}`,
         float: `${this.mode == "y-mode" ? "none" : "left"}`
       };
     }
   },
   methods: {
-    changeX() {
-      console.log(this.xoffset);
-      console.log(this.mode == "x-mode");
-      console.log(this.pWP);
-      console.log(this.xoffset);
-      console.log(parseInt(this.pWP) + parseInt(this.xoffset));
+    CalculateOffset() {
+      if (this.aspectRatioPhoto >= this.aspectRatioShape) {
+        this.mode = "x-mode";
+        this.yoffset = 0;
+        this.pHS = this.pHP;
+        this.pWS = this.pHS * this.aspectRatioShape;
+        this.maxXoffset = parseInt(this.pWP - this.pWS);
+        this.maxYoffset = 0;
+      } else {
+        this.mode = "y-mode";
+        this.xoffset = 0;
+        this.pHS = this.pWP / this.aspectRatioShape;
+        this.pWS = this.pWP;
+        this.maxYoffset = parseInt(this.pHP - this.pHS);
+        this.maxXoffset = 0;
+      }
     },
-    setImage(img){
-      this.image = img;
-      this.previewImage = img; 
-      console.log(this.image);
-    }
-    ,
-    // async changeCamera(deviceId){
-    //   this.deviceId = deviceId;
-    //   let tracks = (await navigator.mediaDevices.getUserMedia({video: true})).getTracks(); //[0].getSettings()
-    //   tracks.forEach(element => {
-        
-    //     if(this.deviceId == element.getSettings().deviceId){
-    //       let {width, height} = element.getSettings();
-    //       this.nHC = height;
-    //       this.nWC = width;
-    //       console.log(element.getSettings());
-    //     }
-    //  element.stop();
+    dataURLtoFile(dataurl) {
+      console.log(dataurl);
+      // var block = dataurl.split(";");
+      // Get the content type of the image
+      // var contentType = block[0].split(":")[1];// In this case "image/gif"
+      // get the real base64 content of the file
+      // var realData = block[1].split(",")[1];
 
-    //   });
-    //   console.log(this.nHC);
-    //   console.log(this.nWC);
-    //   alert(this.nHC + "x" + this.nWC)
-    // },
-    capture(img){
-      if(img){
+      var arr = dataurl.split(","),
+        mime = arr[0].match(/:(.*?);/)[1],
+        bstr = atob(arr[1]),
+        n = bstr.length,
+        u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      this.file = new File([u8arr], "photo.jpg", { type: mime });
+      console.log(this.file);
+    },
+    capture(img) {
+      if (img) {
+        //this.screenWidth
         this.previewImage = img.src;
         img.onload = () => {
-            this.nHF = img.naturalHeight;
-            this.nWF = img.naturalWidth;
-            console.log(img);            
-            this.aspectRatioPhoto = this.nWF / this.nHF;
-            this.UP = this.nHF / 400;
-            console.log(this.UP);
-            this.pWP = parseInt(this.nWF / this.UP);
-            this.pHP = parseInt(this.nHF / this.UP);
-            if (this.aspectRatioPhoto >= this.aspectRatioShape) {
-              this.mode = "x-mode";
-              this.yoffset = 0;
-              this.pHS = this.pHP;
-              this.pWS = this.pHS * this.aspectRatioShape;
-              this.maxXoffset = parseInt(this.pWP - this.pWS);
-              this.maxYoffset = 0;
-            } else {
-              this.mode = "y-mode";
-              this.xoffset = 0;
-              this.pHS = this.pWP / this.aspectRatioShape;
-              this.pWS = this.pWP;
-              this.maxYoffset = parseInt(this.pHP - this.pHS);
-              this.maxXoffset = 0;
-            }
-            
-          };
+          this.nHF = img.naturalHeight;
+          this.nWF = img.naturalWidth;
+          this.aspectRatioPhoto = this.nWF / this.nHF;
+          var width = this.screenWidth - 20;
+          var height = width / this.aspectRatioPhoto;
+          if (height > 400) {
+            height = 400;
+            width = height * this.aspectRatioPhoto;
+          }
+          this.UP = this.nHF / width;
+          console.log(this.UP);
+          this.pWP = parseInt(width);
+          this.pHP = parseInt(height);
+          this.CalculateOffset();
+          this.dataURLtoFile(this.previewImage);
+        };
       }
-    }
-    ,
+    },
     pickFile(event) {
       let files = event.target.files;
       if (files && files[0]) {
@@ -280,35 +289,62 @@ export default {
           image.onload = () => {
             this.nHF = image.naturalHeight;
             this.nWF = image.naturalWidth;
-
             this.aspectRatioPhoto = this.nWF / this.nHF;
-            this.UP = this.nHF / 400;
-            console.log(this.UP);
-            this.pWP = parseInt(this.nWF / this.UP);
-            this.pHP = parseInt(this.nHF / this.UP);
-            if (this.aspectRatioPhoto >= this.aspectRatioShape) {
-              this.mode = "x-mode";
-              this.yoffset = 0;
-              this.pHS = this.pHP;
-              this.pWS = this.pHS * this.aspectRatioShape;
-              this.maxXoffset = parseInt(this.pWP - this.pWS);
-              this.maxYoffset = 0;
-            } else {
-              this.mode = "y-mode";
-              this.xoffset = 0;
-              this.pHS = this.pWP / this.aspectRatioShape;
-              this.pWS = this.pWP;
-              this.maxYoffset = parseInt(this.pHP - this.pHS);
-              this.maxXoffset = 0;
+            var width = this.screenWidth - 30;
+            var height = width / this.aspectRatioPhoto;
+            if (height > 400) {
+              height = 400;
+              width = height * this.aspectRatioPhoto;
             }
-            
+            this.UP = this.nHF / height;
+            console.log(this.UP);
+            this.pWP = parseInt(width);
+            this.pHP = parseInt(height);
+            this.CalculateOffset();
           };
         };
         reader.readAsDataURL(this.file);
       }
     },
+    pickFileOrientation(event) {
+      let files = event.target.files;
+      if (files && files[0]) {
+        this.file = files[0];
+        loadImage(
+          this.file,
+          (img, data) => {
+            console.log(img);
+            console.log(data);
+            this.previewImage = this.getDataUrl(img);
+            this.nHF = data.originalHeight;
+            this.nWF = data.originalWidth;
+            this.aspectRatioPhoto = this.nWF / this.nHF;
+            var width = this.screenWidth - 30;
+            var height = width / this.aspectRatioPhoto;
+            if (height > 400) {
+              height = 400;
+              width = height * this.aspectRatioPhoto;
+            }
+            this.UP = this.nHF / height;
+            this.pWP = parseInt(width);
+            this.pHP = parseInt(height);
+            this.CalculateOffset();
+          },
+          { orientation: true } // Options
+        );
+      }
+    },
+    getDataUrl(img) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      return canvas.toDataURL("image/jpeg");
+    },
     ChooseShape() {
       this.loading = true;
+
       let body = { pieceId: this.pieceId, userId: "202008252542_DVG" };
       axios
         .post(
@@ -328,11 +364,15 @@ export default {
             this.original = this.url;
             var image = new Image();
             image.src = this.url;
-
             image.onload = () => {
+              this.xoffset = 0;
+              this.yoffset = 0;
               this.nHS = image.naturalHeight;
               this.nWS = image.naturalWidth;
               this.aspectRatioShape = this.nWS / this.nHS;
+              if (this.previewImage) {
+                this.CalculateOffset();
+              }
             };
           } else alert(json.header.message);
         })
@@ -343,7 +383,7 @@ export default {
     },
     UploadPhoto() {
       this.loading = true;
-
+      console.log(this.file);
       if (!this.file) {
         this.loading = false;
         alert("Photo required");
@@ -392,10 +432,12 @@ export default {
       this.file = event.target.files[0];
       console.log(this.file);
     }
-  },
+}
+  ,
   mounted() {
     this.pieceId = this.$route.query.pieceId;
     this.loading = false;
+    this.screenWidth = window.innerWidth;
   }
 };
 </script>
@@ -411,7 +453,6 @@ body {
 #photo-preview {
   position: relative;
   overflow: hidden;
-  height: 400px;
   margin: 0 auto;
   border: solid 1px red;
   background-size: cover;
@@ -430,8 +471,18 @@ body {
 #input-x-offset.x-mode,
 #input-y-offset.y-mode {
 }
+#label-x-offset.y-mode,
+#label-y-offset.x-mode {
+  display: none;
+}
 #input-x-offset.y-mode,
 #input-y-offset.x-mode {
   display: none;
+}
+
+#input-x-offset,
+#input-y-offset {
+  width: 70%;
+  padding: 0 15%;
 }
 </style>
